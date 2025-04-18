@@ -16,11 +16,11 @@ class TempMolecularHamiltonian(RestrictedMolecularHamiltonian):
         if sd1 > sd2:
             sd1, sd2 = sd2, sd1
         if [sd1, sd2] == [0b0011, 0b0011]:
-            return [1]
+            return 1
         elif [sd1, sd2] == [0b0011, 0b1100]:
-            return [3]
+            return 3
         elif [sd1, sd2] == [0b1100, 0b1100]:
-            return [8]
+            return 8
 
 
 def test_brute(tmp_path):
