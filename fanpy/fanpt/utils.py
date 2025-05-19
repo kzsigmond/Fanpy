@@ -27,7 +27,8 @@ def update_fanci_objective(new_ham, fanci_objective, norm_det=None):
     fanpy_objective_class = fanci_objective.fanpy_objective.__class__
 
     # Determine if the legacy FanCI interface is used
-    legacy_fanci = isinstance(fanci_objective, ProjectedSchrodingerPyCI)
+    # BUG: we set legacy_fanci to true, when it should be false
+    legacy_fanci = not(isinstance(fanci_objective, ProjectedSchrodingerPyCI))
 
     # Convert new_ham to RestrictedMolecularHamiltonian if necessary
     if isinstance(new_ham, pyci.hamiltonian):

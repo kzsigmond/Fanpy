@@ -273,7 +273,7 @@ class ProjectedSchrodingerLegacyFanCI(metaclass=ABCMeta):
         # Set read-only flag on public array attributes
         self._pspace.setflags(write=False)
         self._sspace.setflags(write=False)
-        self._mask_view.setflags(write=False)
+        # self._mask_view.setflags(write=False)
 
     def make_norm_constraint(self):
         def f(x: np.ndarray) -> float:
@@ -506,7 +506,7 @@ class ProjectedSchrodingerLegacyFanCI(metaclass=ABCMeta):
             self.mask[param] = False
 
         # Update nactive
-        self.nactive = self.mask.sum()
+        self._nactive = self.mask.sum()
 
     def unfreeze_parameter(self, *params: Sequence[int]) -> None:
         """
