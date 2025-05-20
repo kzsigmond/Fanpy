@@ -239,6 +239,7 @@ class ProjectedSchrodingerLegacyFanCI(metaclass=ABCMeta):
         # Number of nonlinear equations and active parameters
         nequation = nproj + len(constraints)
         nactive = mask.sum()
+        print("DEBUG >>> nactive (init): ", nactive)
         if nequation < nactive:
             print(
                 "WARNING: System is underdetermined with dimensions {:}, {:}. Continuing anyways".format(
@@ -1446,6 +1447,9 @@ class ProjectedSchrodingerFanCI(ProjectedSchrodingerLegacyFanCI):
                 d_ovlp_chunk = self.compute_overlap_deriv(x[:-1], "S", [s_chunk, f_chunk])
 
                 # Compute the partial contribution to y
+                print("DEBUG: s_chunk, f_chunk", s_chunk, f_chunk)
+                print("DEBUG: ovlp size", ovlp.shape)
+                print("DEBUG: d_ovlp_chunk size", d_ovlp_chunk.shape)
                 y[: self.nactive - self.mask[-1]] += np.einsum(
                     "i,ij->j", 2 * ovlp[s_chunk:f_chunk], d_ovlp_chunk, optimize="greedy"
                 )
@@ -1687,8 +1691,10 @@ class ProjectedSchrodingerFanCI(ProjectedSchrodingerLegacyFanCI):
         avail_mem = (self.max_memory - current_memory()) * 0.9
 
         chunk_size = max(1, math.floor(avail_mem / tensor_mem))
+        print("Chunk size: ", chunk_size)
         chunk_size = min(chunk_size, self.nactive)
-
+        print("Chunk size after min: ", chunk_size)
+        print("Nactive : ", self.nactive)
         chunks_list = []
         for s_chunk in range(0, self.nactive, chunk_size):
             f_chunk = min(self.nactive, s_chunk + chunk_size)
