@@ -14,6 +14,7 @@ from typing import Any, List, Tuple, Union, Sequence, Callable
 
 import os
 import math
+import time
 
 import pyci
 from pyci.fanci import FanCI
@@ -406,6 +407,11 @@ class ProjectedSchrodingerPyCI(FanCI):
 
         else:
             # Select parameters according to selected chunks
+            if f_chunk - s_chunk > len(sds):
+                # raise ValueError(
+                #     "The number of selected determinants is larger than the number of determinants in the sspace"
+                # )
+                f_chunk = s_chunk + len(sds)
             y = np.zeros(
                 (f_chunk - s_chunk, self.nactive - self.mask[-1]),
                 dtype=pyci.c_double,
@@ -645,11 +651,11 @@ class ProjectedSchrodingerPyCI(FanCI):
             y = np.zeros(self.nactive, dtype=pyci.c_double)
             ovlp = self.compute_overlap(x[:-1], "S")
 
-            chunks = self.calculate_overlap_deriv_chunks()
+            chunks = self.calculate_overlap_deriv_chunks() # these aren't right! -> compute_overlap_deriv returns bigger size than physical!
             for s_chunk, f_chunk in chunks:
 
                 # Compute overlap derivative for the current chunk
-                d_ovlp_chunk = self.compute_overlap_deriv(x[:-1], "S", [s_chunk, f_chunk])
+                d_ovlp_chunk = self.compute_overlap_deriv(x[:-1], "S", chunk_idx=[s_chunk, f_chunk])
 
                 # Compute the partial contribution to y
                 y[: self.nactive - self.mask[-1]] += np.einsum(
