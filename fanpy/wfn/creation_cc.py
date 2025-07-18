@@ -62,7 +62,7 @@ class CreationCC(BaseWavefunction):
         Calculate the product of the parameters of the given permutation.
     """
 
-    def __init__(self, nelec, nspin, memory=None, orbpairs=None, params=None):
+    def __init__(self, nelec, nspin, quadruples=False, memory=None, orbpairs=None, params=None):
         """Initialize the wavefunction
         Parameters
         ----------
@@ -82,6 +82,9 @@ class CreationCC(BaseWavefunction):
         """
 
         super().__init__(nelec, nspin, memory=memory)
+        if type(quadruples) is not bool:
+            raise TypeError("`quadruples` must be a boolean value.")
+        self.quadruples = quadruples
         self.assign_orbpairs(orbpairs=orbpairs)
         self.assign_params(params=params)
         self.permutations, self.signs = self.get_permutations()
