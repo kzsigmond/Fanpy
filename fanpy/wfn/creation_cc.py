@@ -62,7 +62,7 @@ class CreationCC(BaseWavefunction):
         Calculate the product of the parameters of the given permutation.
     """
 
-    def __init__(self, nelec, nspin, quadruples=False, memory=None, orbpairs=None, params=None):
+    def __init__(self, nelec, nspin, quadruples=False, memory=None, clusters=None, params=None):
         """Initialize the wavefunction
         Parameters
         ----------
@@ -75,8 +75,8 @@ class CreationCC(BaseWavefunction):
             If number is provided, it is the number of bytes.
             If string is provided, it should end iwth either "mb" or "gb" to specify the units.
             Default does not limit memory usage (i.e. infinite).
-        orbpairs : iterable of 2-tuple of ints
-            Indices of the orbital pairs that will be used to construct creation cc.
+        clusters : iterable of 2-tuple of ints or 4-tuple of ints, optional
+            Indices of the orbital clusters that will be used to construct creation cc.
         params : np.ndarray
             Coefficients.
         """
@@ -85,7 +85,7 @@ class CreationCC(BaseWavefunction):
         if type(quadruples) is not bool:
             raise TypeError("`quadruples` must be a boolean value.")
         self.quadruples = quadruples
-        self.assign_orbpairs(orbpairs=orbpairs)
+        self.assign_clusters(clusters=clusters)
         self.assign_params(params=params)
         self.permutations, self.signs = self.get_permutations()
         
@@ -139,56 +139,58 @@ class CreationCC(BaseWavefunction):
             params[col_ind] = 1
         super().assign_params(params=params, add_noise=add_noise)
 
-    def assign_orbpairs(self, orbpairs=None):
-        """Assign the orbital pairs used to construct the creation CC wavefunction.
+    def assign_clusters(self, clusters=None):
+        """Assign the orbital clusters used to construct the creation CC wavefunction.
 
         Parameters
         ----------
-        orbpairs : iterable of 2-tuple/list of ints
-            Indices of the orbital pairs that will be used to construct the wavefunction.
-            Default is all possible orbital pairs.
+        clusters : iterable of 2-tuple/list (4-tuple/list) of ints
+            Indices of the orbital clusters that will be used to construct the wavefunction.
+            Default is all possible orbital pairs and quadruples if enabled.
 
         Raises
         ------
         TypeError
-            If `orbpairs` is not an iterable.
-            If an orbital pair is not given as a 2-tuple/list of integers.
+            If `clusters` is not an iterable.
+            If an orbital cluster is not given as a 2-tuple/list of integers.
         ValueError
-            If an orbital pair has the same integer.
-            If an orbital pair occurs more than once.
+            If an orbital cluster has the same integer.
+            If an orbital cluster occurs more than once.
 
         Notes
         -----
         Must have `nspin` defined for the default option.
 
         """
-        if orbpairs is None:
-            orbpairs = tuple((i, j) for i in range(self.nspin) for j in range(i + 1, self.nspin))
-
-        if __debug__ and not hasattr(orbpairs, "__iter__"):
+        if clusters is None:
+            clusters = list((i, j) for i in range(self.nspin) for j in range(i + 1, self.nspin))
+            if self.quadruples:
+                quad_clusters = list((i, j, k, l) for i in range(self.nspin) for j in range(i + 1, self.nspin) for k in range(j + 1, self.nspin) for l in range(k + 1, self.nspin))
+                clusters.extend(quad_clusters)
+        if __debug__ and not hasattr(clusters, "__iter__"):
             raise TypeError("`orbpairs` must iterable.")
-        dict_orbpair_ind = {}
-        for i, orbpair in enumerate(orbpairs):
+        dict_cluster_ind = {}
+        for i, cluster in enumerate(clusters):
+            orbpair_nodup = set(cluster)
             if __debug__:
                 if not (
-                    isinstance(orbpair, (list, tuple))
-                    and len(orbpair) == 2
-                    and all(isinstance(ind, int) for ind in orbpair)
+                    isinstance(cluster, (list, tuple))
+                    and (len(cluster) == 2 or len(cluster) == 4)
+                    and all(isinstance(ind, int) for ind in cluster)
                 ):
-                    raise TypeError("Each orbital pair must be a 2-tuple/list of integers.")
-                if orbpair[0] == orbpair[1]:
-                    raise ValueError("Orbital pair of the same orbital is invalid")
+                    raise TypeError("Each orbital cluster must be a 2-tuple/list or 4-tuple/list of integers.")
+                if len(orbpair_nodup) != len(cluster):
+                    raise ValueError("Orbital cluster of the same orbital is invalid")
 
-            orbpair = tuple(orbpair)
-            # sort orbitals within the pair
-            if orbpair[0] > orbpair[1]:
-                orbpair = orbpair[::-1]
-            if __debug__ and orbpair in dict_orbpair_ind:
-                raise ValueError("The given orbital pairs have multiple entries of {0}.".format(orbpair))
-            dict_orbpair_ind[orbpair] = i
+            cluster = tuple(cluster)
+            # sort orbitals within the cluster
+            cluster = tuple(sorted(cluster))
+            if __debug__ and cluster in dict_cluster_ind:
+                raise ValueError(f"The given orbital clusters have multiple entries of {cluster} with index {dict_cluster_ind[cluster]}.")
+            dict_cluster_ind[cluster] = i
 
-        self.dict_orbpair_ind = dict_orbpair_ind
-        self.dict_ind_orbpair = {i: orbpair for orbpair, i in dict_orbpair_ind.items()}
+        self.dict_cluster_ind = dict_cluster_ind
+        self.dict_ind_cluster = {i: cluster for cluster, i in dict_cluster_ind.items()}
 
     def get_col_ind(self, orbpair: tuple[int]):
         """Get the column index that corresponds to the given orbital pair.
@@ -212,7 +214,7 @@ class CreationCC(BaseWavefunction):
         try:
             if isinstance(orbpair, np.ndarray):
                 orbpair = tuple(orbpair)
-            return self.dict_orbpair_ind[orbpair]
+            return self.dict_cluster_ind[orbpair]
         except (KeyError, TypeError):
             raise ValueError(f"Given orbital pair, {orbpair}, is not included in the wavefunction.")
 
