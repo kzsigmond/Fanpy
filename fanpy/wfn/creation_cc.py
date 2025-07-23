@@ -126,6 +126,10 @@ class CreationCC(BaseWavefunction):
         elec_pairs = int(self.nelec / 2)
         if params is None:
             number_params = int(self.nspin * (self.nspin - 1) / 2)
+            if self.quadruples:
+                number_params += int(
+                    self.nspin * (self.nspin - 1) * (self.nspin - 2) * (self.nspin - 3) / 24
+                )
             params = np.zeros(number_params)
         orbpairs = []
         for i in range(elec_pairs):
