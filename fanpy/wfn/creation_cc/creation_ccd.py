@@ -6,7 +6,7 @@ from fanpy.wfn.base import BaseWavefunction
 from fanpy.tools import slater
 
 
-class CreationCC(BaseWavefunction):
+class CreationCCD(BaseWavefunction):
     r"""Creation Coupled-Cluster wavefunction.
 
     The creation CC wavefunction is given by
