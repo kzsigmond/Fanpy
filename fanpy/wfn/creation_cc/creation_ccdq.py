@@ -80,7 +80,8 @@ class CreationCCDQ(BaseWavefunction):
         params : np.ndarray
             Coefficients.
         """
-
+        if nelec < 4:
+            raise ValueError("CreationCCDQ requires at least 4 electrons.")
         super().__init__(nelec, nspin, memory=memory)
         self.assign_clusters(clusters=clusters)
         self.assign_params(params=params)
@@ -228,17 +229,52 @@ class CreationCCDQ(BaseWavefunction):
         """
 
         indices = np.arange(self.nelec, dtype=int)
-        perm_list = list(combinations(indices, r=2))
+        double_list = list(combinations(indices, r=2))
+        quadruple_list = list(combinations(indices, r=4))
 
-        olp_list = list(combinations(perm_list, r=int(len(indices) / 2)))
+        n_quadruples = int(self.nelec / 4)
+
+        # add permutations with doubles only
+        perms, signs = self._get_sub_permutations(double_list, n = int(len(indices)/2))
+        
+        for i in range(1, n_quadruples+1):
+            n_pairs = int((len(indices) - i * 4)/2)
+            if n_pairs == 0:
+                # quadruples only
+                perm_quads, sign_quads = self._get_sub_permutations(quadruple_list, i)
+                perms.extend(perm_quads)
+                signs.extend(sign_quads)
+            else:
+                perm_double, sign_double = self._get_sub_permutations(double_list, n_pairs)
+                perm_quads, sign_quads = self._get_sub_permutations(quadruple_list, i)
+                for i, sign_d in enumerate(sign_double):
+                    for j, sign_q in enumerate(sign_quads):
+                        p_double = perm_double[i]
+                        p_double_flat = [item for sublist in p_double for item in sublist]
+                        p_quad = perm_quads[j]
+                        p_quad_flat = [item for sublist in p_quad for item in sublist]
+                        p_double_flat.extend(p_quad_flat)
+                        no_dup = list(set(p_double_flat))
+                        if len(no_dup) == self.nelec:
+                            p_total = list(p_double)
+                            p_total.extend(p_quad)
+                            p_total = tuple(p_total)
+                            sign_total = sign_d * sign_q
+                            perms.append(p_total)
+                            signs.append(sign_total)
+        return perms, signs
+
+    def _get_sub_permutations(self, cluster_list, n):
+        length = len(cluster_list[0]) * n
         perms = []
         signs = []
-        for element in olp_list:
-            element_flat = [item for sublist in element for item in sublist]
+        perm_list_dup = list(combinations(cluster_list, r=n))
+        for p in perm_list_dup:
+            element_flat = [item for sublist in p for item in sublist]
             no_dup = list(set(element_flat))
-            if len(no_dup) == len(indices):
-                perms.append(element)
-                signs.append(self.get_sign(element))
+            if len(no_dup) == length:
+                perms.append(p)
+                signs.append(self.get_sign(p))       
         return perms, signs
 
     def get_sign(self, indices: list[int]):
@@ -255,7 +291,7 @@ class CreationCCDQ(BaseWavefunction):
             Sign of the permutation of the given indices.
 
         """
-        olp = [item for pair in indices for item in pair]
+        olp = [item for cluster in indices for item in cluster]
         sign = 1
         for i in range(len(olp)):
             for j in range(i + 1, len(olp)):
