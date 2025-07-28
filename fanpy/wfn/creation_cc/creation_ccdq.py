@@ -312,16 +312,21 @@ class CreationCCDQ(BaseWavefunction):
             Overlap of the Slater determinant with creation CC wavefunction.
 
         """
-        olp = 0.0
-        occ_indices = slater.occ_indices(sd)
-        # add pair contributions
-        olp += self.params[self.dict_orbpair_ind[(occ_indices[0], occ_indices[1])]] * self.params[self.dict_orbpair_ind[(occ_indices[2], occ_indices[3])]]
-        olp -= self.params[self.dict_orbpair_ind[(occ_indices[0], occ_indices[2])]] * self.params[self.dict_orbpair_ind[(occ_indices[1], occ_indices[3])]]
-        olp += self.params[self.dict_orbpair_ind[(occ_indices[0], occ_indices[3])]] * self.params[self.dict_orbpair_ind[(occ_indices[1], occ_indices[2])]]
-        olp += self.params[self.dict_orbpair_ind[tuple(occ_indices)]]
+        occ_indices = [slater.occ_indices(sd)] * len(self.permutations)
+
+        # calculate coefficient of each permutation
+        single_prods = np.fromiter(map(
+            self._calculate_product, 
+            occ_indices, 
+            self.permutations, 
+            self.signs), dtype=float)
+        
+        # calculate olp
+        olp = np.sum(single_prods)
+        
         return olp
 
-    def calculate_product(self, occ_indices, permutation, sign):
+    def _calculate_product(self, occ_indices, permutation, sign):
         """Calculate the product of the parameters of the given permutation.
         
         Parameters
@@ -338,8 +343,10 @@ class CreationCCDQ(BaseWavefunction):
         prod : float
             Product of the parameters of the given permutation
         """
-
-        col_inds = list(map(self.get_col_ind, occ_indices.take(permutation)))
+        occ_ind_permuted = []
+        for cluster in permutation:
+            occ_ind_permuted.append(occ_indices.take(cluster))
+        col_inds = list(map(self.get_col_ind, occ_ind_permuted))
         prod = sign * np.prod(self.params[col_inds])
         return prod
 
@@ -359,13 +366,18 @@ class CreationCCDQ(BaseWavefunction):
 
         occ_indices = slater.occ_indices(sd)
         output = np.zeros(len(self.params))
-        output[self.dict_orbpair_ind[tuple(occ_indices)]] = 1.0
-        output[self.dict_orbpair_ind[(occ_indices[0], occ_indices[1])]] = self.params[self.dict_orbpair_ind[(occ_indices[2], occ_indices[3])]]
-        output[self.dict_orbpair_ind[(occ_indices[2], occ_indices[3])]] = self.params[self.dict_orbpair_ind[(occ_indices[0], occ_indices[1])]]
-        output[self.dict_orbpair_ind[(occ_indices[0], occ_indices[2])]] = -self.params[self.dict_orbpair_ind[(occ_indices[1], occ_indices[3])]]
-        output[self.dict_orbpair_ind[(occ_indices[1], occ_indices[3])]] = -self.params[self.dict_orbpair_ind[(occ_indices[0], occ_indices[2])]]
-        output[self.dict_orbpair_ind[(occ_indices[0], occ_indices[3])]] = self.params[self.dict_orbpair_ind[(occ_indices[1], occ_indices[2])]]
-        output[self.dict_orbpair_ind[(occ_indices[1], occ_indices[2])]] = self.params[self.dict_orbpair_ind[(occ_indices[0], occ_indices[3])]]
+        mapped_permutations = []
+        for permutation in self.permutations:
+            occ_ind_permuted = []
+            for cluster in permutation:
+                occ_ind_permuted.append(tuple(occ_indices.take(cluster)))
+            mapped_permutations.append(occ_ind_permuted)
+
+        for perm in mapped_permutations:
+            sign = self.get_sign(perm)
+            for cluster in perm:
+                col_ind = self.get_col_ind(cluster)
+                output[col_ind] += sign * np.prod([self.params[self.get_col_ind(p)] for p in perm if p != cluster])
         return output
 
     def get_overlap(self, sd: int, deriv=None):
