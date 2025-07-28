@@ -1,0 +1,3 @@
+"""
+Creation CC wavefunction.
+"""
