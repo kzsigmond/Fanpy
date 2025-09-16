@@ -1,9 +1,9 @@
 name: Bug report
 description: "Report a bug."
 labels: ["bug", "triage"]
+projects: ["mqcomplab/6"]
 type: "Bug"
 title: "BUG: "
-projects: ["mqcomplab/6"]
 
 body:
 - type: textarea
