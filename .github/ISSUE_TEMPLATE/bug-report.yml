@@ -3,6 +3,7 @@ description: "Report a bug."
 labels: ["bug", "triage"]
 type: "Bug"
 title: "BUG: "
+projects: ["mqcomplab/6"]
 
 body:
 - type: textarea

@@ -3,6 +3,7 @@ description: "Miscellaneous tasks and issues."
 labels: ["triage"]
 type: "Task"
 title: "Example task"
+projects: ["mqcomplab/6"]
 
 body:
 - type: textarea
