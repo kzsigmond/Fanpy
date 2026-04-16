@@ -339,7 +339,7 @@ class PYCI:
             eqn_weights=self.fanpy_objective.eqn_weights,
             energy_type=self.fanpy_objective.energy_type,
             energy=self.fanpy_objective.energy.params,
-            constraints=self.constraints,
+            constraints=self.fanpy_objective.constraints
         )
 
         # Build FanCI objective as PyCI interface

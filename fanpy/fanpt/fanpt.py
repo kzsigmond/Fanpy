@@ -142,14 +142,18 @@ class FANPT:
             kwargs = {}
 
         # Convert ProjectedSchrodinger to PyCI objective interface
-        fanci_interface = fanpy.interface.pyci.PYCI(fanpy_objective, energy_nuc, legacy_fanci=legacy_fanci)
+        constraints = {}
+        norm_constraint = fanpy_objective.constraints[0]
+        constraints[f"<\\psi_{{{fanpy_objective.refwfn}}}|\\Psi> - v_{{{fanpy_objective.refwfn}}}"] = [norm_constraint.objective, norm_constraint.gradient]
+        e_const = fanpy_objective.constraints[1]
+        constraints["Energy"] = [e_const.objective, e_const.gradient]
+        fanci_interface = fanpy.interface.pyci.PYCI(fanpy_objective, energy_nuc, legacy_fanci=legacy_fanci, constraints=constraints)
         fanci_objective = fanci_interface.objective
 
         # Check for normalization constraint in FANCI wfn
         # Assumes intermediate normalization relative to ref_sd only
         if ref_sd is None:
             ref_sd = fanci_objective.fanpy_objective.refwfn
-
         if f"<\\psi_{{{ref_sd}}}|\\Psi> - v_{{{ref_sd}}}" in fanci_objective.constraints:
             inorm = True
             norm_det = [(ref_sd, 1.0)]

@@ -575,7 +575,7 @@ class ProjectedSchrodingerLegacyFanCI(metaclass=ABCMeta):
 
         # Compute constraint functions
         for i, constraint in enumerate(self._constraints.values()):
-            f_cons[i] = constraint[0](x)
+            f_cons[i] = constraint[0](x[:-1])
 
         # Return objective
         return f
@@ -647,7 +647,11 @@ class ProjectedSchrodingerLegacyFanCI(metaclass=ABCMeta):
 
         # Compute Jacobian of constraint functions
         for i, constraint in enumerate(self._constraints.values()):
-            jac_cons[i] = constraint[1](x)
+            #Note : fanpy constraints do not depend on the energy
+            jac_cons_i  = np.zeros(jac_cons[i].shape)
+            fanpy_jac_cons = constraint[1](x[:-1])
+            jac_cons_i[:len(fanpy_jac_cons)] = fanpy_jac_cons
+            jac_cons[i] = jac_cons_i
 
         # Return Jacobian
         return jac
