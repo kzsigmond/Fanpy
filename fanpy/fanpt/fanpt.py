@@ -3,6 +3,8 @@
 import numpy as np
 import pyci
 
+from fanpy.eqn.constraints.energy import EnergyConstraint
+from fanpy.ham.restricted_chemical import RestrictedMolecularHamiltonian
 import fanpy.interface.pyci
 from fanpy.fanpt.utils import reduce_to_fock
 from fanpy.eqn.projected import ProjectedSchrodinger
@@ -147,6 +149,9 @@ class FANPT:
         constraints[f"<\\psi_{{{fanpy_objective.refwfn}}}|\\Psi> - v_{{{fanpy_objective.refwfn}}}"] = [norm_constraint.objective, norm_constraint.gradient]
         e_const = fanpy_objective.constraints[1]
         constraints["Energy"] = [e_const.objective, e_const.gradient]
+        # save reference energy for constriaint
+        # todo: update this so it works if energy constraint not provided
+        self.ref_energy = e_const.ref_energy
         fanci_interface = fanpy.interface.pyci.PYCI(fanpy_objective, energy_nuc, legacy_fanci=legacy_fanci, constraints=constraints)
         fanci_objective = fanci_interface.objective
 
@@ -225,6 +230,20 @@ class FANPT:
                 "quasi_approximation_order=3 requires energy_active=True. "
                 "Please set energy_active=True or use quasi_approximation_order=2."
             )
+        
+    def create_energy_constraint(self, pyci_ham):
+        """Determine energy constraint given the current hamiltonian and fanpy wavefunction.
+        
+        Parameters
+        ----------
+        pyci_ham : pyci.hamiltonian
+            current hamiltonian for which to build the energy constraint.
+        """
+        #todo: add warning if self.ref_energy not set up. 
+        fanpy_ham = RestrictedMolecularHamiltonian(one_int=pyci_ham.one_mo, two_int= pyci_ham.two_mo)
+        energy_constraint = EnergyConstraint(self.fanci_interface.fanpy_wfn, fanpy_ham, ref_energy=self.ref_energy)
+        return energy_constraint
+
     def optimize(
         self,
         guess_params,
@@ -277,7 +296,16 @@ class FANPT:
         if not self.energy_active:
             # unfreeze the energy parameter if it is not active
             fanci_objective.unfreeze_parameter(-1)
-
+        # set up energy constraint again so it has the correct reference energy and hamiltonian
+        # todo: add checks and make sure this is only enabled if energy constraint present. 
+        e_const = self.create_energy_constraint(self.ham0)
+        fanci_objective.fanpy_objective.constraints[1] = e_const
+        print("DEBUG >>> reference energy for constraint: ", fanci_objective.fanpy_objective.constraints[1].ref_energy)
+        constraints = {}
+        norm_constraint = fanci_objective.fanpy_objective.constraints[0]
+        constraints[f"<\\psi_{{{fanci_objective.fanpy_objective.refwfn}}}|\\Psi> - v_{{{fanci_objective.fanpy_objective.refwfn}}}"] = [norm_constraint.objective, norm_constraint.gradient]
+        constraints["Energy"] = [e_const.objective, e_const.gradient]
+        self.fanci_interface.constraints = constraints
         # Get initial guess for parameters at initial lambda value.
         results = fanci_objective.optimize(guess_params, **solver_kwargs)
         guess_params[fanci_objective.mask] = results.x
@@ -326,7 +354,16 @@ class FANPT:
             if not self.energy_active:
                 # unfreeze the energy parameter if it is not active
                 fanci_objective.unfreeze_parameter(-1)
-
+            # set up energy constraint again so it has the correct reference energy and hamiltonian
+            # todo: add checks and make sure this is only enabled if energy constraint present. 
+            e_const = self.create_energy_constraint(fanpt_updater.new_ham)
+            fanci_objective.fanpy_objective.constraints[1] = e_const
+            print("DEBUG >>> reference energy for constraint: ", fanci_objective.fanpy_objective.constraints[1].ref_energy)
+            constraints = {}
+            norm_constraint = fanci_objective.fanpy_objective.constraints[0]
+            constraints[f"<\\psi_{{{fanci_objective.fanpy_objective.refwfn}}}|\\Psi> - v_{{{fanci_objective.fanpy_objective.refwfn}}}"] = [norm_constraint.objective, norm_constraint.gradient]
+            constraints["Energy"] = [e_const.objective, e_const.gradient]
+            self.fanci_interface.constraints = constraints
             # Solve the fanci problem with fanpt_params as initial guess.
             # Take the params given by fanci and use them as initial params in the FANPT calculation for the next lambda.
             results = fanci_objective.optimize(fanpt_params, **solver_kwargs)
